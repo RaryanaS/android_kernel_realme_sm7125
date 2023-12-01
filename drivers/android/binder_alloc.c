@@ -396,7 +396,7 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 #ifdef OPLUS_FEATURE_HANS_FREEZE
 //#Kun.Zhou@ANDROID.RESCONTROL, 2019/09/23, add for hans freeze manager
 	if (is_async
-		&& (alloc->free_async_space < 3 * (size + sizeof(struct binder_buffer))
+		&& (alloc->free_async_space < (3 * size)
 		|| (alloc->free_async_space < ((alloc->buffer_size / 2) * 9 / 10)))) {
 		rcu_read_lock();
 		p = find_task_by_vpid(alloc->pid);
@@ -407,8 +407,7 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 	}
 #endif /*OPLUS_FEATURE_HANS_FREEZE*/
 
-	if (is_async &&
-	    alloc->free_async_space < size + sizeof(struct binder_buffer)) {
+	if (is_async && alloc->free_async_space < size) {
 		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
 			     "%d: binder_alloc_buf size %zd failed, no async space left\n",
 			      alloc->pid, size);
@@ -511,7 +510,7 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 	buffer->async_transaction = is_async;
 	buffer->extra_buffers_size = extra_buffers_size;
 	if (is_async) {
-		alloc->free_async_space -= size + sizeof(struct binder_buffer);
+		alloc->free_async_space -= size;
 		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC_ASYNC,
 			     "%d: binder_alloc_buf size %zd async free %zd\n",
 			      alloc->pid, size, alloc->free_async_space);
@@ -636,8 +635,7 @@ static void binder_free_buf_locked(struct binder_alloc *alloc,
 	BUG_ON(buffer->user_data > alloc->buffer + alloc->buffer_size);
 
 	if (buffer->async_transaction) {
-		alloc->free_async_space += buffer_size + sizeof(struct binder_buffer);
-
+		alloc->free_async_space += buffer_size;
 		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC_ASYNC,
 			     "%d: binder_free_buf size %zd async free %zd\n",
 			      alloc->pid, size, alloc->free_async_space);
